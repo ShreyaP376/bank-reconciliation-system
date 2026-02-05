@@ -1,0 +1,4 @@
+transactionId,date,amount,description,reference
+TXN-001,2024-01-15,1000.00,Consulting Jan,REF-001
+TXN-002,2024-01-16,250.50,License fee,REF-002
+TXN-003,2024-01-18,500.00,Support Q1,REF-003

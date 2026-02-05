@@ -1,0 +1,4 @@
+invoiceId,reference,amount,date,description,customerName
+INV-001,REF-001,1000.00,2024-01-15,Consulting Jan,Acme Corp
+INV-002,REF-002,250.50,2024-01-16,License fee,Tech Ltd
+INV-003,REF-003,500.00,2024-01-17,Support Q1,Global Inc

@@ -1,0 +1,34 @@
+spring:
+  application:
+    name: bank-reconciliation
+  datasource:
+    url: jdbc:postgresql://localhost:5432/postgres
+    username: postgres
+    password: admin
+    driver-class-name: org.postgresql.Driver
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: false
+    properties:
+      hibernate:
+        format_sql: true
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+    open-in-view: false
+
+server:
+  port: 8080
+
+# CORS for Angular dev server
+app:
+  cors-allowed-origins: http://localhost:4200
+  jwt:
+    secret: ${JWT_SECRET:your-256-bit-secret-key-for-jwt-signing-must-be-long-enough}
+    expiration-ms: 86400000
+
+# CSV sample column names (adjust if your CSVs differ)
+csv:
+  ledger:
+    columns: invoiceId,reference,amount,date,description,customerName
+  statement:
+    columns: transactionId,date,amount,description,reference

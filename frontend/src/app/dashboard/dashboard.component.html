@@ -1,0 +1,194 @@
+<main class="dashboard">
+  <header class="toolbar">
+    <div class="title-wrap">
+      <h1>Dashboard</h1>
+      <p class="subtitle">Quick overview of invoices & transactions</p>
+    </div>
+    <div class="toolbar-actions">
+      <button class="btn primary" *ngIf="auth.canReconcile()" (click)="runReconcile()" [disabled]="loading">Run reconciliation</button>
+      <button class="btn" (click)="exportReport()">
+        <svg class="icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M12 3v10" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" fill="none"/><path d="M8 9l4 4 4-4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" fill="none"/><path d="M21 21H3" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" fill="none"/></svg>
+        Export
+      </button>
+      <button class="btn" (click)="exportUnmatchedInvoices()">
+        <svg class="icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M12 3v10" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" fill="none"/><path d="M8 9l4 4 4-4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" fill="none"/><path d="M21 21H3" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" fill="none"/></svg>
+        Invoices
+      </button>
+      <button class="btn" (click)="exportUnmatchedTransactions()">
+        <svg class="icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M12 3v10" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" fill="none"/><path d="M8 9l4 4 4-4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" fill="none"/><path d="M21 21H3" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" fill="none"/></svg>
+        Transactions
+      </button>
+      <button class="btn" (click)="exportAudit()">
+        <svg class="icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M12 3v10" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" fill="none"/><path d="M8 9l4 4 4-4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" fill="none"/><path d="M21 21H3" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" fill="none"/></svg>
+        Audit
+      </button>
+    </div>
+  </header>
+
+  <section class="summary" *ngIf="summary">
+    <div class="card-grid">
+      <div class="card">
+        <div class="card-label">Invoices</div>
+        <div class="card-value">{{ summary.totalInvoices }}</div>
+      </div>
+      <div class="card">
+        <div class="card-label">Transactions</div>
+        <div class="card-value">{{ summary.totalTransactions }}</div>
+      </div>
+      <div class="card">
+        <div class="card-label">Matched (count)</div>
+        <div class="card-value">{{ summary.matchedInvoicesCount }} / {{ summary.totalInvoices }} ({{ summary.matchPercentByCount | number:'1.1-1' }}%)</div>
+      </div>
+      <div class="card">
+        <div class="card-label">Matched (amount)</div>
+        <div class="card-value">{{ summary.matchedAmount | number:'1.2-2' }} ({{ summary.matchPercentByAmount | number:'1.1-1' }}%)</div>
+      </div>
+      <div class="card">
+        <div class="card-label">Outstanding</div>
+        <div class="card-value">{{ summary.outstandingBalance | number:'1.2-2' }}</div>
+      </div>
+      <div class="card">
+        <div class="card-label">Overpayment credits</div>
+        <div class="card-value">{{ summary.overpaymentCredits | number:'1.2-2' }}</div>
+      </div>
+    </div>
+  </section>
+
+  <section class="panel invoices">
+    <div class="panel-header">
+      <h2>Invoices</h2>
+      <div class="filter">
+        <label>Filter status</label>
+        <select [(ngModel)]="filterInvoiceStatus">
+          <option value="">All</option>
+          <option value="PAID">PAID</option>
+          <option value="PARTIALLY_PAID">PARTIALLY_PAID</option>
+          <option value="UNPAID">UNPAID</option>
+          <option value="OVERPAID">OVERPAID</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="table-wrap">
+      <table class="minimal">
+        <thead>
+          <tr>
+            <th>Id</th>
+            <th>Reference</th>
+            <th>Amount</th>
+            <th>Date</th>
+            <th>Status</th>
+            <th>Matched</th>
+            <th>Confidence</th>
+            <th>Action</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let inv of filteredInvoices">
+            <td>{{ inv.id }}</td>
+            <td>{{ inv.reference }}</td>
+            <td>{{ inv.amount }}</td>
+            <td>{{ inv.date }}</td>
+            <td>
+              <span class="status" [class.status-paid]="inv.status==='PAID'" [class.status-partial]="inv.status==='PARTIALLY_PAID'" [class.status-unpaid]="inv.status==='UNPAID'" [class.status-overpaid]="inv.status==='OVERPAID'">{{ inv.status }}</span>
+              <div *ngIf="overrideInvoiceId === inv.id && overrideTransactionId" class="selected-tx">Selected Tx #{{ overrideTransactionId }}</div>
+            </td>
+            <td>{{ inv.matchedAmount ?? 0 }}</td>
+            <td>{{ inv.confidence ?? '-' }}</td>
+            <td>
+              <ng-container *ngIf="auth.canOverride()">
+                <select #txSelect class="compact" (change)="onTxChange(inv, txSelect.value)">
+                  <option value="" disabled selected>Select Tx</option>
+                  <option *ngFor="let tx of transactions" [value]="tx.id">Link to Tx {{ tx.id }}</option>
+                </select>
+              </ng-container>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section class="panel transactions">
+    <div class="panel-header">
+      <h2>Transactions</h2>
+      <div class="filter">
+        <label>Filter status</label>
+        <select [(ngModel)]="filterTransactionStatus">
+          <option value="">All</option>
+          <option value="MATCHED">MATCHED</option>
+          <option value="PARTIALLY_MATCHED">PARTIALLY_MATCHED</option>
+          <option value="UNMATCHED">UNMATCHED</option>
+          <option value="OUTGOING">OUTGOING</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="table-wrap">
+      <table class="minimal">
+        <thead>
+          <tr>
+            <th>Id</th>
+            <th>Date</th>
+            <th>Amount</th>
+            <th>Description</th>
+            <th>Reference</th>
+            <th>Status</th>
+            <th>Matched</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let tx of filteredTransactions">
+            <td>{{ tx.id }}</td>
+            <td>{{ tx.date }}</td>
+            <td>{{ tx.amount }}</td>
+            <td>{{ tx.description }}</td>
+            <td>{{ tx.reference }}</td>
+            <td>
+              <span class="status" [class.status-matched]="tx.status==='MATCHED'" [class.status-partial]="tx.status==='PARTIALLY_MATCHED'" [class.status-unmatched]="tx.status==='UNMATCHED'" [class.status-outgoing]="tx.status==='OUTGOING'">{{ tx.status }}</span>
+            </td>
+            <td>{{ tx.matchedAmount ?? 0 }}</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <div class="dialog-overlay" *ngIf="showOverrideDialog" (click)="closeOverride()">
+    <div class="dialog" (click)="$event.stopPropagation()">
+      <button class="close" (click)="closeOverride()">×</button>
+      <h3>Manual link</h3>
+      <p class="error" *ngIf="overrideError">{{ overrideError }}</p>
+
+      <div class="form-row">
+        <div class="form-group">
+          <label>Invoice ID</label>
+          <input [value]="overrideInvoiceId" readonly />
+        </div>
+        <div class="form-group">
+          <label>Transaction</label>
+          <select [(ngModel)]="overrideTransactionId">
+            <option [ngValue]="null">-- Select --</option>
+            <option *ngFor="let tx of transactions" [ngValue]="tx.id">#{{ tx.id }} {{ tx.date }} {{ tx.amount }} {{ tx.description }}</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="form-row">
+        <div class="form-group">
+          <label>Amount</label>
+          <input type="number" [(ngModel)]="overrideAmount" />
+        </div>
+        <div class="form-group">
+          <label>Reason</label>
+          <input [(ngModel)]="overrideReason" />
+        </div>
+      </div>
+
+      <div class="dialog-actions">
+        <button class="btn primary" (click)="submitLink()">Link</button>
+        <button class="btn" (click)="closeOverride()">Cancel</button>
+      </div>
+    </div>
+  </div>
+</main>
